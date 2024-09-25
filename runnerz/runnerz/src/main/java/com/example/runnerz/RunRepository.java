@@ -34,6 +34,17 @@ public class RunRepository {
         runs.add(run);
     }
 
+    void update (Run run, Integer id){
+        Optional<Run> existingRun = findById(id);
+        if (existingRun.isPresent()) {
+            runs.set(runs.indexOf(existingRun.get()), run);
+        }
+    }
+
+    void delete (Integer id){
+        runs.removeIf(run -> run.id().equals(id));
+    }
+
     @PostConstruct // Used to perform operations after dependency injection is done to perform any initialization
     private void init() {
         runs.add(new Run(
@@ -44,7 +55,7 @@ public class RunRepository {
         ));
 
     }
-
+ 
 
 
 }

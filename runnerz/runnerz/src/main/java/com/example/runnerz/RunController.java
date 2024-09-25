@@ -1,17 +1,27 @@
 package com.example.runnerz;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.run.RunNotFoundException;
+
+import jakarta.validation.Valid;
+
 import java.util.List;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import java.util.Optional;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+
+
 
 
 @RestController// This annotation is used to create RESTful web services using Spring MVC
@@ -28,7 +38,7 @@ public class RunController {
 
 
 
-
+   
     @GetMapping("") // This annotation maps HTTP requests to handler methods of MVC and REST controllers
     List<Run> findAll() {
         return runRepository.findAll();
@@ -45,21 +55,32 @@ public class RunController {
         Run findById(@PathVariable Integer id) {
             Optional<Run> run = runRepository.findById(id);
             if (run.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND); // If the run is not found, throw a 404 error
+                throw new RunNotFoundException(); // If the run is not found, throw a 404 error
             }
             return run.get(); // The get() method of the Optional Class returns the value if present, otherwise will throw a NoSuchElementException
         }
 // Create (Post)
-
-void create(@RequestBody Run run) { // Somehow needs to pass in a run, N
+ @ResponseStatus(HttpStatus.CREATED) // This annotation is used to specify the HTTP response status code in the controller
+    // 201 instead of 200, notifies sender something is created
+@PostMapping("")
+void create(@Valid @RequestBody Run run) { // Somehow needs to pass in a run, N
     runRepository.create(run);
 }
 
 // Update (Put)
+@ResponseStatus(HttpStatus.NO_CONTENT)
+@PutMapping("/{id}")
+void update(@Valid @RequestBody Run run, @PathVariable Integer id) {
+    runRepository.update(run, id);
+}
 // Delete (Delete)
-    
+@ResponseStatus(HttpStatus.NO_CONTENT)
+@DeleteMapping("/{id}")
+void delete(@PathVariable Integer id) {
+    runRepository.delete(id);
 
     }
+}
 
    
     
