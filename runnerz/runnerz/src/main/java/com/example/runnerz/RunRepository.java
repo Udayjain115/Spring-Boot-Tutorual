@@ -1,61 +1,93 @@
 package com.example.runnerz;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
-import jakarta.annotation.PostConstruct;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-
-
-@Repository // This annotation is used to indicate that the class provides the mechanism for storage, retrieval, search, update and delete operation on objects
+@Repository // This annotation is used to indicate that the class provides the mechanism for
+// storage, retrieval, search, update and delete operation on objects
 public class RunRepository {
 
-    
-    private List <Run> runs = new ArrayList<>();
+  private static final Logger log = LoggerFactory.getLogger(RunRepository.class);
+  private final JdbcClient jdbcClient;
 
-    List<Run> findAll() {
-        return runs;
-    }
+  public RunRepository(JdbcClient jdbcClient) {
+    this.jdbcClient = jdbcClient;
+  }
 
-    Optional<Run> findById(Integer id){
-        return runs.stream().filter(run -> run.id().equals(id)).findFirst();
+  public List<Run> findAll() {
+    return jdbcClient.sql("select * from RunsTable").query(Run.class).list();
+  }
 
-        // Stream() converts the collection (runs) into a stream, a stream is a sequence of elements from the collection that allows you to perform operations on its elements
-        // Used because it allows us to perform operations like filtering, mapping and reducting on the collection in a function way, without explicitly writing loops
-        // fildter method will filer the stream created, based on a condition, in this case that condition is to keep only the ones that match the id parameter passed in, the arrow function is a lambda expression, it means for each run in the stream, check if run.id() is equal to id
-        // Find first() returns the first element in the stream that matches the condition set by filter, find first will only return if the first match exists, because the stream has been filetered returns an optional, which is a container object that may or may not contain a non-null value
-        // orElse() returns the value if present, otherwise returns the default value passed in, in this case null
-    }
+  public Optional<Run> findById(Integer id) {
+    return jdbcClient
+        .sql("select * from RunsTable where id = :id")
+        .param("id", id)
+        .query(Run.class)
+        .optional();
+  }
 
-    void create (Run run) {
-        runs.add(run);
-    }
+  public void create(Run run) {
+    var updated =
+        jdbcClient
+            .sql(
+                "INSERT INTO RunsTable(id, title, started_on, completed_on, distance, location)"
+                    + " values(?, ?, ?, ?, ?, ?)")
+            .params(
+                List.of(
+                    run.id(),
+                    run.title(),
+                    run.startedOn(),
+                    run.completedOn(),
+                    run.distance(),
+                    run.location().toString()))
+            .update();
 
-    void update (Run run, Integer id){
-        Optional<Run> existingRun = findById(id);
-        if (existingRun.isPresent()) {
-            runs.set(runs.indexOf(existingRun.get()), run);
-        }
-    }
+    Assert.state(updated == 1, "Run not created" + run.title());
+  }
 
-    void delete (Integer id){
-        runs.removeIf(run -> run.id().equals(id));
-    }
+  public void update(Run run, Integer id) {
+    var updated =
+        jdbcClient
+            .sql(
+                "UPDATE RunsTable SET title = ?, started_on = ?, completed_on = ?, distance = ?,"
+                    + " location = ? WHERE id = ?")
+            .param(
+                List.of(
+                    run.title(),
+                    run.startedOn(),
+                    run.completedOn(),
+                    run.distance(),
+                    run.location(),
+                    id))
+            .update();
 
-    @PostConstruct // Used to perform operations after dependency injection is done to perform any initialization
-    private void init() {
-        runs.add(new Run(
-            1, "First Run", LocalDateTime.now(), LocalDateTime.now().plus(1, ChronoUnit.HOURS), 5, Location.OUTDOOR
-        ));
-        runs.add(new Run(
-            2, "Second Run", LocalDateTime.now(), LocalDateTime.now().plus(2, ChronoUnit.HOURS), 5, Location.INDOOR
-        ));
+    Assert.state(updated == 1, "Run not updated" + run.title());
+  }
 
-    }
- 
+  public void delete(Integer id) {
+    var updated = jdbcClient.sql("DELETE FROM RunsTable WHERE id = :id").param("id", id).update();
 
+    Assert.state(updated == 1, "Run not deleted" + id);
+  }
 
+  public int count() {
+    return jdbcClient.sql("select * from RunsTable").query().listOfRows().size();
+  }
+
+  public void saveAll(List<Run> runs) {
+    runs.stream().forEach(this::create);
+  }
+
+  public List<Run> findByLocation(String location) {
+    return jdbcClient
+        .sql("select * from RunsTable where location = :location")
+        .param("location", location)
+        .query(Run.class)
+        .list();
+  }
 }
